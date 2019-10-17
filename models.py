@@ -88,7 +88,7 @@ class SentenceLSTM(nn.Module):
 		self.tanh2 = nn.Tanh()
 		self.final_stop_layer = nn.Linear(int_stop_dim, 2)
 
-	def forward(self, vis_enc_output, captions):
+	def forward(self, vis_enc_output, captions, device):
 		"""
         Forward propagation.
 
@@ -101,11 +101,11 @@ class SentenceLSTM(nn.Module):
 
 		vis_enc_output = vis_enc_output.view(batch_size, -1, vis_enc_dim) # (batch_size, num_pixels, vis_enc_dim)
 
-		h = torch.zeros((batch_size, self.sent_hidden_dim))
-		c = torch.zeros((batch_size, self.sent_hidden_dim))
+		h = torch.zeros((batch_size, self.sent_hidden_dim)).to(device)
+		c = torch.zeros((batch_size, self.sent_hidden_dim)).to(device)
 
-		topics = torch.zeros((batch_size, captions.shape[1], self.word_input_dim))
-		ps = torch.zeros((batch_size, captions.shape[1], 2))
+		topics = torch.zeros((batch_size, captions.shape[1], self.word_input_dim)).to(device)
+		ps = torch.zeros((batch_size, captions.shape[1], 2)).to(device)
 
 		for t in range(captions.shape[1]):
 			vis_att_output, vis_att_scores = self.vis_att(vis_enc_output, h) # (batch_size, vis_enc_dim), (batch_size, num_pixels)

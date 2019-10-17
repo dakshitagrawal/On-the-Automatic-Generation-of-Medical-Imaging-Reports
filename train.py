@@ -39,8 +39,8 @@ def script(args):
 
 	wordLSTM = WordLSTM(args.word_input_dim, args.word_hidden_dim, vocab_size, args.num_layers).to(args.device)
 
-	criterion_stop = nn.CrossEntropyLoss()
-	criterion_words = nn.CrossEntropyLoss()
+	criterion_stop = nn.CrossEntropyLoss().to(args.device)
+	criterion_words = nn.CrossEntropyLoss().to(args.device)
 
 	params_cnn = list(encoderCNN.parameters())
 	params_lstm = list(sentLSTM.parameters()) + list(wordLSTM.parameters())
@@ -63,11 +63,11 @@ def script(args):
 
 			vis_enc_output = encoderCNN(images)
 
-			topics, ps = sentLSTM(vis_enc_output, captions)
+			topics, ps = sentLSTM(vis_enc_output, captions, args.device)
 
 			loss_sent = criterion_stop(ps.view(-1, 2), prob.view(-1))
 
-			loss_word = 0
+			loss_word = torch.tensor([0.0]).to(args.device)
 
 			for j in range(captions.shape[1]):
 				word_outputs = wordLSTM(topics[:, j, :], captions[:, j, :])
@@ -76,14 +76,15 @@ def script(args):
 
 			loss = args.lambda_sent * loss_sent + args.lambda_word * loss_word
 
+
 			loss.backward()
 			optim_cnn.step()
 			optim_lstm.step()
 
 			# Print log info
 			if i % args.log_step == 0:
-				print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Perplexity: {:5.4f}'
-				      .format(epoch, args.num_epochs, i, total_step, loss.item(), np.exp(loss.item()))) 
+				print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
+				      .format(epoch, args.num_epochs, i, total_step, loss.item())) 
 			    
 			# Save the model checkpoints
 			# if (i+1) % args.save_step == 0:
@@ -103,7 +104,7 @@ if __name__ == "__main__":
 	parser.add_argument('--image_path', type = str, default = 'iu_xray_images', help = 'path of the images file')
 	parser.add_argument('--img_size', type = int, default = 224, help = 'size to which image is to be resized')
 	parser.add_argument('--crop_size', type = int, default = 224, help = 'size to which the image is to be cropped')
-	parser.add_argument('--device_number', type = str, default = "7", help = 'which GPU to run experiment on')
+	parser.add_argument('--device_number', type = str, default = "0", help = 'which GPU to run experiment on')
 
 
 	parser.add_argument('--int_stop_dim', type = int, default = 64, help = 'intermediate state dimension of stop vector network')
@@ -119,10 +120,10 @@ if __name__ == "__main__":
 	parser.add_argument('--lambda_word', type = int, default = 1, help = 'weight for cross-entropy loss of words predicted from word LSTM with target words')
 
 
-	parser.add_argument('--batch_size', type = int, default = 8, help = 'size of the batch')
+	parser.add_argument('--batch_size', type = int, default = 32, help = 'size of the batch')
 	parser.add_argument('--shuffle', type = bool, default = True, help = 'shuffle the instances in dataset')
 	parser.add_argument('--num_workers', type = int, default = 0, help = 'number of workers for the dataloader')
-	parser.add_argument('--num_epochs', type = int, default = 20, help = 'number of epochs to train the model')
+	parser.add_argument('--num_epochs', type = int, default = 50, help = 'number of epochs to train the model')
 	parser.add_argument('--learning_rate_cnn', type = int, default = 1e-5, help = 'learning rate for CNN Encoder')
 	parser.add_argument('--learning_rate_lstm', type = int, default = 5e-4, help = 'learning rate for LSTM Decoder')
 
@@ -130,10 +131,11 @@ if __name__ == "__main__":
 	parser.add_argument('--log_step', type=int , default=10, help='step size for prining log info')
 	parser.add_argument('--save_step', type=int , default=1000, help='step size for saving trained models')
 
-
 	args = parser.parse_args()
 
 	os.environ["CUDA_VISIBLE_DEVICES"]= args.device_number
 	args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+	print(args.device)
 
 	script(args)
