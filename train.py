@@ -3,6 +3,7 @@ import torch
 import argparse
 from models import EncoderCNN, SentenceLSTM, WordLSTM
 from dataloader import get_loader
+from score import evalscores
 from torchvision import transforms
 from torch import nn
 import numpy as np
@@ -166,32 +167,39 @@ def evaluate(args, val_loader, encoderCNN, sentLSTM, wordLSTM, vocab):
 				if ps[j, k, 1] > 0.5:
 					words_x = pred_words[j, k, :].tolist()
 					
-					pred_caption.extend([w for w in words_x if w not in {vocab.word2idx['<pad>'], vocab.word2idx['<start>']}])
+					# pred_caption.extend([w for w in words_x if w not in {vocab.word2idx['<pad>'], vocab.word2idx['<start>']}])
+
+					pred_caption.append(" ".join([vocab.idx2word[w] for w in words_x if w not in {vocab.word2idx['<pad>'], vocab.word2idx['<start>'], vocab.word2idx['<end>']}]) + ".")
 
 				if prob[j, k] == 1:
 					words_y = captions[j, k, :].tolist()
-					target_caption.extend([w for w in words_y if w not in {vocab.word2idx['<pad>'], vocab.word2idx['<start>']}])
+					# target_caption.extend([w for w in words_y if w not in {vocab.word2idx['<pad>'], vocab.word2idx['<start>']}])
+					target_caption.append(" ".join([vocab.idx2word[w] for w in words_y if w not in {vocab.word2idx['<pad>'], vocab.word2idx['<start>'], vocab.word2idx['<end>']}]) + ".")
 
 			hypotheses.append(pred_caption)
 			references.append([target_caption])
 
 	assert len(references) == len(hypotheses)
+
 	print(references[0])
 	print(hypotheses[0])
-	print([vocab.idx2word[references[0][0][k]] for k in range(len(references[0][0]))])
-	print([vocab.idx2word[hypotheses[0][k]] for k in range(len(hypotheses[0]))])
-	bleu4 = corpus_bleu(references, hypotheses)
-	bleu3 = corpus_bleu(references, hypotheses, weights=(0.33, 0.33, 0.33, 0))
-	bleu2 = corpus_bleu(references, hypotheses, weights=(0.5, 0.5, 0, 0))
-	bleu1 = corpus_bleu(references, hypotheses, weights=(1, 0, 0, 0))
+	evalscores(hypotheses, references)
+
+	# print([vocab.idx2word[references[0][0][k]] for k in range(len(references[0][0]))])
+	# print([vocab.idx2word[hypotheses[0][k]] for k in range(len(hypotheses[0]))])
+	# bleu4 = corpus_bleu(references, hypotheses)
+	# bleu3 = corpus_bleu(references, hypotheses, weights=(0.33, 0.33, 0.33, 0))
+	# bleu2 = corpus_bleu(references, hypotheses, weights=(0.5, 0.5, 0, 0))
+	# bleu1 = corpus_bleu(references, hypotheses, weights=(1, 0, 0, 0))
 
 
-	print(
-	    '\n * BLEU-1 - {bleu1}, BLEU-2 - {bleu2}, BLEU-3 - {bleu3}, BLEU-4 - {bleu4}\n'.format(
-	        bleu1=bleu1,
-	        bleu2=bleu2,
-	        bleu3=bleu3,
-	        bleu4=bleu4))
+	# print(
+	#     '\n * BLEU-1 - {bleu1}, BLEU-2 - {bleu2}, BLEU-3 - {bleu3}, BLEU-4 - {bleu4}\n'.format(
+	#         bleu1=bleu1,
+	#         bleu2=bleu2,
+	#         bleu3=bleu3,
+	#         bleu4=bleu4))
+
 
 
 
@@ -220,8 +228,8 @@ if __name__ == "__main__":
 	parser.add_argument('--lambda_word', type = int, default = 1, help = 'weight for cross-entropy loss of words predicted from word LSTM with target words')
 
 
-	parser.add_argument('--batch_size', type = int, default = 4, help = 'size of the batch')
-	parser.add_argument('--shuffle', type = bool, default = False, help = 'shuffle the instances in dataset')
+	parser.add_argument('--batch_size', type = int, default = 8, help = 'size of the batch')
+	parser.add_argument('--shuffle', type = bool, default = True, help = 'shuffle the instances in dataset')
 	parser.add_argument('--num_workers', type = int, default = 0, help = 'number of workers for the dataloader')
 	parser.add_argument('--num_epochs', type = int, default = 50, help = 'number of epochs to train the model')
 	parser.add_argument('--learning_rate_cnn', type = int, default = 1e-5, help = 'learning rate for CNN Encoder')
