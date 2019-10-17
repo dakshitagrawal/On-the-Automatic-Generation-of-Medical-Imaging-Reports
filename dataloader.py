@@ -41,7 +41,7 @@ def create_captions(filepath):
     return captions
 
 class iuxray(Dataset):
-    def __init__(self, root_dir, tsv_path, image_path, transform=None):
+    def __init__(self, root_dir, tsv_path, image_path, vocab = None, transform=None):
         self.root_dir = root_dir
         self.tsv_path = tsv_path
         self.image_path = image_path
@@ -49,7 +49,10 @@ class iuxray(Dataset):
         tsv_file = os.path.join(self.root_dir, self.tsv_path)
         
         self.captions = create_captions(tsv_file)
-        self.vocab = build_vocab(self.captions, 1)
+        if vocab is None:
+            self.vocab = build_vocab(self.captions, 1)
+        else:
+            self.vocab = vocab
         self.data_file = pd.read_csv(tsv_file, delimiter='\t',encoding='utf-8')
         self.transform = transform
 
@@ -57,6 +60,7 @@ class iuxray(Dataset):
         return len(self.data_file)
 
     def __getitem__(self, idx):
+        # print(idx)
         img_name = os.path.join(self.root_dir, self.image_path, self.data_file.iloc[idx, 0])
         image = Image.open(img_name)
         
@@ -64,6 +68,10 @@ class iuxray(Dataset):
             image = self.transform(image)
         
         caption = self.captions[idx]
+
+        # print("---")
+        # print(caption)
+        # print("----")
 
         sentences = []
 
@@ -73,7 +81,10 @@ class iuxray(Dataset):
             sentence.append(self.vocab('<start>'))
             sentence.extend([self.vocab(token) for token in tokens])
             sentence.append(self.vocab('<end>'))
+            # print([self.vocab.idx2word[k] for k in sentence])
             sentences.append(sentence)
+
+        # print([self.vocab.idx2word[sentences[0][k]] for k in sentences[0]]) 
             
         max_sent_len = max([len(sentences[i]) for i in range(len(sentences))])
         
@@ -120,16 +131,17 @@ def collate_fn(data):
             targets[i, j, :len(sent)] = sent[:] 
             prob[i, j] = 1
         # stop after the last sentence
-        prob[i, j] = 0
+        # prob[i, j] = 0
       
     return images, targets, prob
 
-def get_loader(root_dir, tsv_path, image_path, transform, batch_size, shuffle, num_workers):
+def get_loader(root_dir, tsv_path, image_path, transform, batch_size, shuffle, num_workers, vocab = None):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
     # dataset
     data = iuxray(root_dir = root_dir, 
              tsv_path = tsv_path, 
              image_path = image_path,
+             vocab = vocab,
              transform = transform)
     
     # Data loader for dataset
